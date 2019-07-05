@@ -1,0 +1,145 @@
+package procesiranjeKnjiga;
+
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+
+public class Knjiga {
+	
+	protected static String lokacija = "knjiga";
+	protected static String recnik = "jdbc:sqlite:C:\\Users\\User\\Desktop\\Dictionary.db";
+	protected static String recnik2 = "jdbc:sqlite:C:\\Users\\User\\Desktop\\Dictionary2.db";
+	
+
+public static void pronadjiRec() {
+	try(BufferedReader br = new BufferedReader(new FileReader(lokacija)); 
+			Connection connection = DriverManager.getConnection(recnik);
+			Connection connection2 = DriverManager.getConnection(recnik2);
+			Statement stm = connection.createStatement();
+			Statement stm2 = connection2.createStatement()){
+		
+		StringBuffer sb = new StringBuffer();
+		sb.append("INSERT INTO entries(word) VALUES ");
+		HashMap<String, Integer> mapa2 = new HashMap<String, Integer>();
+		HashMap<String, ResultSet> mapa = new HashMap<String, ResultSet>();
+		ArrayList<String> reci = new ArrayList<String>();
+		ArrayList<String> reciKnjiga = new ArrayList<String>();
+		String upit = "SELECT word FROM entries";
+		ResultSet rezultat = stm.executeQuery(upit);
+		
+		while(rezultat.next()) {
+			mapa.put(rezultat.getString(1).toLowerCase(), rezultat);
+		}
+		String linija = br.readLine();
+		while(linija != null) {
+			String[] pom = linija.split("[\\p{Punct}\\s0123456789]+");
+			for(int i = 0; i < pom.length; i++) {
+				if(pom[i].equals(""))continue;
+				if(pom[i].length() == 1) {
+					if(!(pom[i].charAt(0) >= 'A' && pom[i].charAt(0) <= 'z')) continue;
+				}
+				else if(pom[i].length() > 1) {
+					if(!(pom[i].charAt(0) >= 'A' && pom[i].charAt(0) <= 'z')) {
+						pom[i] = pom[i].substring(1);
+					}
+					if(!(pom[i].charAt(pom[i].length()-1) >= 'A' && pom[i].charAt(pom[i].length()-1) <= 'z')) {
+						pom[i] = pom[i].substring(0, pom[i].length()-1);
+					}	
+				}
+				reciKnjiga.add(pom[i]);
+				if(mapa.containsKey(pom[i].toLowerCase()) == false && mapa2.containsKey(pom[i].toLowerCase()) == false) {
+					mapa2.put(pom[i], 0);
+				}
+				else if(mapa.containsKey(pom[i].toLowerCase())) reci.add(pom[i]);
+			}
+			linija = br.readLine();
+		}
+		for(String s: mapa2.keySet()) {
+			sb.append("('" + s + "'), ");
+		}
+		sb.deleteCharAt(sb.toString().length()-2);
+		sb.append(";");
+		stm2.execute(sb.toString());
+		
+		pronadjiPonavljanje(sortiraj(reci));
+		top20(sortiraj(reciKnjiga));
+	}
+	catch(Exception e){
+		e.printStackTrace();
+	}
+}
+
+
+public static HashMap<String, Integer> sortiraj(ArrayList<String> reci){
+	HashMap<String, Integer> mapa = new HashMap<String, Integer>();
+	for(int i = 0; i < reci.size(); i++) {
+		if(mapa.containsKey(reci.get(i))) {
+			int brojac = mapa.get(reci.get(i));
+			mapa.put(reci.get(i), ++brojac);
+		}
+		else mapa.put(reci.get(i), 1);
+	}
+	return mapa;
+}
+
+
+public static void pronadjiPonavljanje(HashMap<String, Integer> mapa){
+	try(FileWriter fw = new FileWriter("spisakPonavljanja")){
+	fw.write("Rec (broj ponavljanja)\n");
+	for(String s: mapa.keySet()) {
+		fw.write(s + "(" + mapa.get(s) + ")" + "\n");
+	}
+	}
+	catch(Exception e) {
+		e.printStackTrace();
+	}
+}
+
+
+public static void top20(HashMap<String, Integer> mapa) {
+	try(FileWriter fw = new FileWriter("top20")){
+		sortirajLeksikografski(mapa);
+		HashMap<String, Integer> pom = new HashMap<String, Integer>();
+		fw.write("20 najcesce koriscenih reci:\n");
+		int max;
+		String kljuc;
+		for(int i = 0; i < 20; i++) {
+			max = 0;
+			kljuc = "";
+		for(String s: mapa.keySet()) {
+			if(mapa.get(s) > max) {
+				max = mapa.get(s);
+				kljuc = s;
+				pom.put(kljuc, max);
+			}
+		}
+		fw.write(kljuc + "(" + mapa.get(kljuc) + ")\n");
+		mapa.remove(kljuc);
+		}
+	}
+	catch(Exception e) {
+		e.printStackTrace();
+	}
+}
+
+
+public static void sortirajLeksikografski(HashMap<String,Integer> reci) {
+	try(FileWriter fw = new FileWriter("leksikografskiSort")){
+		LinkedList<String> sredjeneReci = new LinkedList<String>();
+		for(String s: reci.keySet()) sredjeneReci.add(s);
+		Collections.sort(sredjeneReci);
+		for(int i = 0; i < sredjeneReci.size(); i++) {
+			fw.write(sredjeneReci.get(i) + "\n");
+			fw.flush();
+		}
+	}
+	catch(Exception e) {
+		e.printStackTrace();
+	}
+}
+
+public static void main(String[] args) {
+	pronadjiRec();
+}
+
+}
